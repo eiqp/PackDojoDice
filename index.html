@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pack Dojo Dice Decider</title>
+  <link rel="stylesheet" href="style.css" />
+<style>
+:root {
+  --bg: #03150b;
+  --panel-bg: #072615;
+  --panel-inset: #041b0e;
+  --wood-rim: #451a03;
+  --wood-highlight: #78350f;
+  --felt-center: #166534;
+  --felt-edge: #052e16;
+  --gold: #facc15;
+  --gold-dark: #ca8a04;
+  --amber: #f59e0b;
+  --text: #f0fdf4;
+  --muted: #86efac;
+  --border-subtle: rgba(134, 239, 172, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #062414 0%, var(--bg) 100%);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 28px 20px;
+}
+
+.app-layout {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  max-width: 1120px;
+  align-items: stretch;
+}
+
+/* SHARED WOOD & FELT PANEL STYLING */
+.main-panel,
+.side-panel {
+  background: linear-gradient(180deg, #092e1a 0%, var(--panel-bg) 100%);
+  border: 4px solid var(--wood-rim);
+  outline: 1px solid var(--wood-highlight);
+  border-radius: 18px;
+  padding: 26px;
+  box-shadow:
+    0 16px 36px rgba(0, 0, 0, 0.65),
+    inset 0 0 24px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+}
+
+.main-panel {
+  flex: 1.4;
+}
+
+.side-panel {
+  flex: 1;
+  max-width: 390px;
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 1.75rem;
+  color: var(--gold);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.subtitle {
+  margin: 0 0 20px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* DICE MAT STYLING */
+.dice-mat-wrapper {
+  margin-bottom: 20px;
+}
+
+.mat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mat-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+}
+
+.dice-count-badge {
+  background: rgba(250, 204, 21, 0.14);
+  color: var(--gold);
+  border: 1px solid rgba(250, 204, 21, 0.4);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.dice-mat {
+  position: relative;
+  height: 310px;
+  width: 100%;
+  border-radius: 16px;
+  background: radial-gradient(circle at center, var(--felt-center) 0%, var(--felt-edge) 100%);
+  border: 8px solid var(--wood-rim);
+  outline: 1px solid var(--wood-highlight);
+  box-shadow:
+    inset 0 0 36px rgba(0, 0, 0, 0.8),
+    0 8px 20px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.mat-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  color: rgba(250, 204, 21, 0.07);
+  pointer-events: none;
+  user-select: none;
+}
+
+.dice-arena {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* INDIVIDUAL ROLLED DIE (1.4s SMOOTH DECELERATION) */
+.die {
+  position: absolute;
+  width: 58px;
+  height: 58px;
+  background: linear-gradient(145deg, #fffbeb, #fef3c7);
+  color: #451a03;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.7rem;
+  font-weight: 900;
+  box-shadow:
+    0 6px 12px rgba(0, 0, 0, 0.55),
+    inset 0 2px 2px #ffffff,
+    inset 0 -3px 0 #d97706;
+  user-select: none;
+  transition: left 1.4s cubic-bezier(0.16, 1, 0.3, 1),
+              top 1.4s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 1.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.die.tumbling {
+  animation: tumbleBounce 0.16s infinite alternate ease-in-out;
+}
+
+@keyframes tumbleBounce {
+  0% {
+    filter: brightness(1.03);
+    box-shadow: 0 16px 22px rgba(0, 0, 0, 0.65);
+  }
+  100% {
+    filter: brightness(0.95);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* CONTROLS */
+.controls {
+  display: flex;
+  gap: 12px;
+}
+
+button {
+  flex: 1;
+  border: none;
+  padding: 14px 18px;
+  font-size: 1rem;
+  font-weight: 800;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, var(--gold) 0%, var(--amber) 100%);
+  color: #291102;
+  box-shadow: 0 4px 0 #92400e;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #fde047 0%, var(--gold) 100%);
+}
+
+.btn-secondary {
+  background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+  color: #03150b;
+  box-shadow: 0 4px 0 #052e16;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #052e16;
+}
+
+button:disabled {
+  background: #0d3b22;
+  color: #3f6e54;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* RESULT BANNER */
+.result-banner {
+  display: none;
+  background: radial-gradient(circle at center, #0f4c29 0%, #052e16 100%);
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 18px;
+  text-align: center;
+  margin-top: 18px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.result-banner.show {
+  display: block;
+  animation: popIn 0.35s ease;
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.result-sum {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.pack-name {
+  font-size: 1.85rem;
+  font-weight: 800;
+  color: var(--gold);
+  margin: 4px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.pack-meta {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.reset-link {
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  padding: 6px 12px;
+  margin-top: 6px;
+  flex: none;
+  box-shadow: none;
+}
+
+.reset-link:hover:not(:disabled) {
+  background: transparent;
+  color: var(--gold);
+}
+
+/* RIGHT SISTER SIDE PANEL */
+.side-panel h2 {
+  margin: 0 0 6px;
+  font-size: 1.35rem;
+  color: var(--gold);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.side-subtitle {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  background: var(--panel-inset);
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+th, td {
+  padding: 11px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+th {
+  background: rgba(5, 46, 22, 0.9);
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+tr {
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+tr.active-tier {
+  background: rgba(250, 204, 21, 0.22);
+  color: var(--gold);
+  font-weight: 800;
+}
+
+/* RESPONSIVE STACKING ON SMALL SCREENS */
+@media (max-width: 860px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  .side-panel {
+    max-width: 100%;
+  }
+}
+</style>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- LEFT MAIN PANEL: DICE MAT & CONTROLS -->
+    <main class="main-panel">
+      <header>
+        <h1>Pack Dojo Dice Decider</h1>
+        <p class="subtitle">Roll 1 die to set your dice count, then toss them onto the table for your pack.</p>
+      </header>
+
+      <!-- FELT DICE MAT -->
+      <div class="dice-mat-wrapper">
+        <div class="mat-header">
+          <span class="mat-label" id="matStatus">Step 1: Roll Multiplier Die</span>
+          <span class="dice-count-badge" id="countBadge">1d6 Ready</span>
+        </div>
+        <div class="dice-mat" id="diceMat">
+          <div class="mat-watermark">PACK DOJO</div>
+          <div id="diceArena" class="dice-arena"></div>
+        </div>
+      </div>
+
+      <!-- ACTION CONTROLS -->
+      <div class="controls">
+        <button id="rollCountBtn" class="btn-primary">1. Roll Multiplier Die (1d6)</button>
+        <button id="rollPackBtn" class="btn-secondary" disabled>2. Roll Pack Dice</button>
+      </div>
+
+      <!-- WINNING RESULT BANNER -->
+      <div class="result-banner" id="resultBanner">
+        <div class="result-sum">Total Sum: <strong id="totalSumDisplay">0</strong></div>
+        <div class="pack-name" id="winningPackName">Starter ($25)</div>
+        <div class="pack-meta" id="winningPackMeta">Max Card Value in Pool: $400</div>
+        <button class="reset-link" id="resetBtn">Clear Table</button>
+      </div>
+    </main>
+
+    <!-- RIGHT SISTER SIDE PANEL: PACK TIER KEY -->
+    <aside class="side-panel">
+      <h2>Pack Tier Key</h2>
+      <p class="side-subtitle">Your final dice sum maps to these Pack Dojo tiers:</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Sum</th>
+            <th>Pack Tier</th>
+            <th>Price</th>
+            <th>Max Pull</th>
+          </tr>
+        </thead>
+        <tbody id="tierTableBody"></tbody>
+      </table>
+    </aside>
+  </div>
+
+  <script src="script.js"></script>
+<script>
+const PACK_TIERS = [
+  { min: 1,  max: 5,  name: "Starter",    price: "$25",     maxVal: "$400" },
+  { min: 6,  max: 9,  name: "Silver",     price: "$50",     maxVal: "$800" },
+  { min: 10, max: 13, name: "Gold",       price: "$100",    maxVal: "$1,600" },
+  { min: 14, max: 17, name: "Sensei",     price: "$250",    maxVal: "$4,000" },
+  { min: 18, max: 21, name: "Platinum",   price: "$500",    maxVal: "$8,000" },
+  { min: 22, max: 25, name: "Diamond",    price: "$1,000",  maxVal: "$16,000" },
+  { min: 26, max: 29, name: "Lunar",      price: "$2,500",  maxVal: "$40,000" },
+  { min: 30, max: 33, name: "Neutronium", price: "$5,000",  maxVal: "$80,000" },
+  { min: 34, max: 36, name: "Riptonium",  price: "$10,000", maxVal: "$160,000" }
+];
+
+const ROLL_DURATION_MS = 1400; // Matches the 1.4s CSS transition
+
+let diceCount = 0;
+
+const diceArena = document.getElementById("diceArena");
+const matStatus = document.getElementById("matStatus");
+const countBadge = document.getElementById("countBadge");
+const rollCountBtn = document.getElementById("rollCountBtn");
+const rollPackBtn = document.getElementById("rollPackBtn");
+const resultBanner = document.getElementById("resultBanner");
+const totalSumDisplay = document.getElementById("totalSumDisplay");
+const winningPackName = document.getElementById("winningPackName");
+const winningPackMeta = document.getElementById("winningPackMeta");
+const resetBtn = document.getElementById("resetBtn");
+const tierTableBody = document.getElementById("tierTableBody");
+
+function renderTable(activeIndex = -1) {
+  tierTableBody.innerHTML = "";
+  PACK_TIERS.forEach((tier, idx) => {
+    const tr = document.createElement("tr");
+    if (idx === activeIndex) tr.classList.add("active-tier");
+    tr.innerHTML = `
+      <td>${tier.min} – ${tier.max}</td>
+      <td>${tier.name}</td>
+      <td>${tier.price}</td>
+      <td>${tier.maxVal}</td>
+    `;
+    tierTableBody.appendChild(tr);
+  });
+}
+
+function rollD6() {
+  return Math.floor(Math.random() * 6) + 1;
+}
+
+// Generates non-overlapping landing spots inside the mat
+function generateLandingSpots(count) {
+  const arenaWidth = diceArena.clientWidth || 500;
+  const arenaHeight = diceArena.clientHeight || 290;
+  const dieSize = 58;
+  const padding = 22;
+  const minDistance = 74;
+  const spots = [];
+
+  for (let i = 0; i < count; i++) {
+    let x, y, valid;
+    let attempts = 0;
+
+    do {
+      valid = true;
+      x = padding + Math.random() * Math.max(10, arenaWidth - dieSize - padding * 2);
+      y = padding + Math.random() * Math.max(10, arenaHeight - dieSize - padding * 2);
+
+      for (const spot of spots) {
+        const dist = Math.hypot(spot.x - x, spot.y - y);
+        if (dist < minDistance) {
+          valid = false;
+          break;
+        }
+      }
+      attempts++;
+    } while (!valid && attempts < 100);
+
+    const angle = Math.floor(Math.random() * 50) - 25;
+    spots.push({ x, y, angle });
+  }
+  return spots;
+}
+
+// Throws dice onto the mat and locks the final number at the exact moment motion stops
+function tossDiceOntoMat(count, onComplete) {
+  diceArena.innerHTML = "";
+  const spots = generateLandingSpots(count);
+  const diceItems = [];
+
+  spots.forEach((spot, index) => {
+    const die = document.createElement("div");
+    die.className = "die tumbling";
+    const finalValue = rollD6(); // Pre-determine final roll
+    die.textContent = rollD6();
+
+    const startY = (diceArena.clientHeight / (count + 1)) * (index + 1) - 29;
+    die.style.left = "-70px";
+    die.style.top = `${startY}px`;
+    die.style.transform = `rotate(${Math.random() * 360 - 180}deg) scale(1.18)`;
+
+    diceArena.appendChild(die);
+    diceItems.push({ el: die, spot, finalValue, settled: false });
+  });
+
+  // Trigger layout reflow so CSS transition starts cleanly
+  void diceArena.offsetWidth;
+
+  diceItems.forEach(({ el, spot }) => {
+    const spinDirection = Math.random() > 0.5 ? 720 : -720; // Extra full rotation for longer roll
+    el.style.left = `${spot.x}px`;
+    el.style.top = `${spot.y}px`;
+    el.style.transform = `rotate(${spinDirection + spot.angle}deg) scale(1)`;
+  });
+
+  const startTime = performance.now();
+  let lastFaceChange = startTime;
+
+  // Decelerating face-flip loop synced to the 1.4s physical slide/spin
+  function animateFaces(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / ROLL_DURATION_MS, 1);
+
+    // Slow down face changes as the die loses momentum (from 55ms up to 240ms)
+    const currentFlipDelay = 55 + Math.pow(progress, 2) * 185;
+
+    if (progress < 1) {
+      if (now - lastFaceChange >= currentFlipDelay) {
+        diceItems.forEach(item => {
+          item.el.textContent = rollD6();
+        });
+        lastFaceChange = now;
+      }
+      requestAnimationFrame(animateFaces);
+    } else {
+      // Exact moment motion stops: lock final value and remove tumble animation
+      const values = diceItems.map(item => {
+        item.el.classList.remove("tumbling");
+        item.el.textContent = item.finalValue;
+        return item.finalValue;
+      });
+      onComplete(values);
+    }
+  }
+
+  requestAnimationFrame(animateFaces);
+}
+
+// STAGE 1: ROLL FOR DICE COUNT
+rollCountBtn.addEventListener("click", () => {
+  rollCountBtn.disabled = true;
+  rollPackBtn.disabled = true;
+  resultBanner.classList.remove("show");
+  renderTable(-1);
+  matStatus.textContent = "Rolling Multiplier Die...";
+
+  tossDiceOntoMat(1, (values) => {
+    diceCount = values;
+    matStatus.textContent = `Multiplier Landed on ${diceCount}! Ready for Step 2`;
+    countBadge.textContent = `${diceCount}d6 Unlocked`;
+    rollPackBtn.textContent = `2. Toss ${diceCount} ${diceCount === 1 ? "Die" : "Dice"} onto Table`;
+    rollPackBtn.disabled = false;
+    rollCountBtn.disabled = false;
+  });
+});
+
+// STAGE 2: ROLL PACK DICE ONTO MAT
+rollPackBtn.addEventListener("click", () => {
+  rollPackBtn.disabled = true;
+  rollCountBtn.disabled = true;
+  resultBanner.classList.remove("show");
+  matStatus.textContent = `Rolling ${diceCount} ${diceCount === 1 ? "Die" : "Dice"}...`;
+
+  tossDiceOntoMat(diceCount, (values) => {
+    const sum = values.reduce((acc, val) => acc + val, 0);
+    const matchedIndex = PACK_TIERS.findIndex(t => sum >= t.min && sum <= t.max);
+    const pack = PACK_TIERS[matchedIndex];
+
+    matStatus.textContent = `Rolled ${values.join(" + ")} = ${sum}`;
+    totalSumDisplay.textContent = `${sum} (from ${diceCount}d6)`;
+    winningPackName.textContent = `${pack.name} (${pack.price})`;
+    winningPackMeta.textContent = `Max Card Value in Pool: ${pack.maxVal}`;
+    resultBanner.classList.add("show");
+    renderTable(matchedIndex);
+
+    rollCountBtn.disabled = false;
+    rollPackBtn.disabled = false;
+  });
+});
+
+// RESET MAT
+resetBtn.addEventListener("click", () => {
+  diceCount = 0;
+  diceArena.innerHTML = "";
+  matStatus.textContent = "Step 1: Roll Multiplier Die";
+  countBadge.textContent = "1d6 Ready";
+  rollPackBtn.textContent = "2. Roll Pack Dice";
+  rollPackBtn.disabled = true;
+  resultBanner.classList.remove("show");
+  renderTable(-1);
+});
+
+renderTable();
+</script>
+</body>
+</html>
